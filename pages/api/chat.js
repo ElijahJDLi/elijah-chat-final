@@ -41,7 +41,7 @@ export default async function handler(req, res) {
     // Poll run status (timeout after 20s)
     const start = Date.now();
     let status = runData.status;
-    while (status !== 'completed' && status !== 'failed' && Date.now() - start < 20000) {
+    while (status !== 'completed' && status !== 'failed' && Date.now() - start < 45000) {
       await new Promise(r => setTimeout(r, 1000));
       const resStatus = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs/${runId}`, {
         headers: {
