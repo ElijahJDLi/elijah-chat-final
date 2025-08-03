@@ -77,7 +77,19 @@ export default async function handler(req, res) {
 
   } catch (err) {
     const errorBody = await err.response?.text?.() || '';
-    console.error('Full OpenAI error:', errorBody);
-    res.status(500).json({ reply: 'Server error: ' + errorBody });
+    let errorMessage = err.message;
+try {
+  const text = await err?.response?.text?.();
+  if (text) {
+    console.error('OpenAI Error Body:', text);
+    errorMessage += ' | ' + text;
+  }
+} catch (e) {
+  console.error('Failed to parse error body');
+}
+
+console.error('Final Error:', errorMessage);
+res.status(500).json({ reply: 'Server error: ' + errorMessage });
+
   }
 }
