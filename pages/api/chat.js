@@ -11,6 +11,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Create a new thread
     const threadRes = await fetch('https://api.openai.com/v1/threads', {
       method: 'POST',
       headers: {
@@ -23,6 +24,7 @@ export default async function handler(req, res) {
     const threadData = await threadRes.json();
     const threadId = threadData.id;
 
+    // Start a run using the assistant
     const runRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs`, {
       method: 'POST',
       headers: {
@@ -31,32 +33,35 @@ export default async function handler(req, res) {
         'OpenAI-Beta': 'assistants=v2'
       },
       body: JSON.stringify({
-        assistant_id: 'asst_u6oAZEJ8BEZtVj5IYCrkfbpT'
+        assistant_id: 'asst_u6oAZEJ8BEZtVj5IYCrkfbpT',
+        tool_choice: "auto"
       })
     });
 
     const runData = await runRes.json();
     const runId = runData.id;
 
-    // Poll run status (timeout after 20s)
+    // Poll run status until completed or timeout after 45s
     const start = Date.now();
     let status = runData.status;
+
     while (status !== 'completed' && status !== 'failed' && Date.now() - start < 45000) {
       await new Promise(r => setTimeout(r, 1000));
-      const resStatus = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs/${runId}`, {
+      const checkRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs/${runId}`, {
         headers: {
           'Authorization': `Bearer ${OPENAI_API_KEY}`,
           'OpenAI-Beta': 'assistants=v2'
         }
       });
-      const json = await resStatus.json();
-      status = json.status;
+      const checkData = await checkRes.json();
+      status = checkData.status;
     }
 
     if (status !== 'completed') {
       return res.status(500).json({ reply: 'The assistant did not respond in time.' });
     }
 
+    // Retrieve assistant's message
     const msgRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
@@ -65,10 +70,11 @@ export default async function handler(req, res) {
     });
 
     const msgData = await msgRes.json();
-    const last = msgData.data.find(m => m.role === 'assistant');
+    const lastMessage = msgData.data.find(m => m.role === 'assistant');
+    const reply = lastMessage?.content?.[0]?.text?.value || 'No response available.';
 
-    const reply = last?.content?.[0]?.text?.value || 'No response available.';
     res.status(200).json({ reply });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ reply: 'Server error: ' + err.message });
