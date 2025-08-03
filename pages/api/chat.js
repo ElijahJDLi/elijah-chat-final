@@ -76,7 +76,8 @@ export default async function handler(req, res) {
     res.status(200).json({ reply });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ reply: 'Server error: ' + err.message });
+    const errorBody = await err.response?.text?.() || '';
+    console.error('Full OpenAI error:', errorBody);
+    res.status(500).json({ reply: 'Server error: ' + errorBody });
   }
 }
